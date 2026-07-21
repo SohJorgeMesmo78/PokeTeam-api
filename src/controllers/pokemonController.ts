@@ -2,44 +2,52 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { seedPokemons } from '../scripts/seed';
 
-const formatPokemon = (p: any) => ({
-  id: p.id,
-  name: p.name,
-  height: p.height,
-  weight: p.weight,
-  base_experience: Math.round(
-    (p.hp + p.attack + p.defense + p.specialAttack + p.specialDefense + p.speed) / 3
-  ),
-  spriteUrl: p.spriteUrl,
-  artworkUrl: p.artworkUrl,
-  sprites: {
-    front_default: p.spriteUrl,
-    front_shiny: p.spriteUrl,
-    back_default: null,
-    other: {
-      'official-artwork': {
-        front_default: p.artworkUrl,
+const formatPokemon = (p: any) => {
+  const defaultSprite = p.spriteUrl || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+  const shinySprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${p.id}.png`;
+  const artwork = p.artworkUrl || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
+
+  return {
+    id: p.id,
+    name: p.name,
+    height: p.height,
+    weight: p.weight,
+    base_experience: Math.round(
+      (p.hp + p.attack + p.defense + p.specialAttack + p.specialDefense + p.speed) / 3
+    ),
+    spriteUrl: defaultSprite,
+    shinySpriteUrl: shinySprite,
+    artworkUrl: artwork,
+    sprites: {
+      front_default: defaultSprite,
+      front_shiny: shinySprite,
+      back_default: null,
+      other: {
+        'official-artwork': {
+          front_default: artwork,
+          front_shiny: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${p.id}.png`,
+        },
       },
     },
-  },
-  stats: [
-    { base_stat: p.hp, effort: 0, stat: { name: 'hp', url: '' } },
-    { base_stat: p.attack, effort: 0, stat: { name: 'attack', url: '' } },
-    { base_stat: p.defense, effort: 0, stat: { name: 'defense', url: '' } },
-    { base_stat: p.specialAttack, effort: 0, stat: { name: 'special-attack', url: '' } },
-    { base_stat: p.specialDefense, effort: 0, stat: { name: 'special-defense', url: '' } },
-    { base_stat: p.speed, effort: 0, stat: { name: 'speed', url: '' } },
-  ],
-  types: p.types.map((t: any, idx: number) => ({
-    slot: idx + 1,
-    type: { name: t.type.name, url: '' },
-  })),
-  abilities: p.abilities.map((a: any, idx: number) => ({
-    slot: idx + 1,
-    is_hidden: a.isHidden,
-    ability: { name: a.ability.name, url: '' },
-  })),
-});
+    stats: [
+      { base_stat: p.hp, effort: 0, stat: { name: 'hp', url: '' } },
+      { base_stat: p.attack, effort: 0, stat: { name: 'attack', url: '' } },
+      { base_stat: p.defense, effort: 0, stat: { name: 'defense', url: '' } },
+      { base_stat: p.specialAttack, effort: 0, stat: { name: 'special-attack', url: '' } },
+      { base_stat: p.specialDefense, effort: 0, stat: { name: 'special-defense', url: '' } },
+      { base_stat: p.speed, effort: 0, stat: { name: 'speed', url: '' } },
+    ],
+    types: p.types.map((t: any, idx: number) => ({
+      slot: idx + 1,
+      type: { name: t.type.name, url: '' },
+    })),
+    abilities: p.abilities.map((a: any, idx: number) => ({
+      slot: idx + 1,
+      is_hidden: a.isHidden,
+      ability: { name: a.ability.name, url: '' },
+    })),
+  };
+};
 
 export const getPokemons = async (req: Request, res: Response) => {
   try {
