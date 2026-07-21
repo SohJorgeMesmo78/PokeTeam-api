@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Pokemon {
+  id             Int              @id
+  name           String           @unique
+  height         Int
+  weight         Int
+  spriteUrl      String
+  artworkUrl     String
+  hp             Int
+  attack         Int
+  defense        Int
+  specialAttack  Int
+  specialDefense Int
+  speed          Int
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  types          PokemonType[]
+  abilities      PokemonAbility[]
+
+  @@map("pokemons")
+}
+
+model Type {
+  id       Int           @id @default(autoincrement())
+  name     String        @unique
+  pokemons PokemonType[]
+
+  @@map("types")
+}
+
+model PokemonType {
+  pokemonId Int
+  typeId    Int
+  pokemon   Pokemon @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  type      Type    @relation(fields: [typeId], references: [id], onDelete: Cascade)
+
+  @@id([pokemonId, typeId])
+  @@map("pokemon_types")
+}
+
+model Ability {
+  id       Int              @id @default(autoincrement())
+  name     String           @unique
+  pokemons PokemonAbility[]
+
+  @@map("abilities")
+}
+
+model PokemonAbility {
+  pokemonId Int
+  abilityId Int
+  isHidden  Boolean @default(false)
+  pokemon   Pokemon @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  ability   Ability @relation(fields: [abilityId], references: [id], onDelete: Cascade)
+
+  @@id([pokemonId, abilityId])
+  @@map("pokemon_abilities")
+}
