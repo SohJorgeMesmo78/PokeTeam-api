@@ -7,9 +7,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            Int            @id @default(autoincrement())
+  username      String         @unique
+  email         String         @unique
+  password      String
+  teams         Team[]
+  savedPokemons SavedPokemon[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("users")
+}
+
+model Team {
+  id          Int          @id @default(autoincrement())
+  name        String
+  gameVersion String?
+  userId      Int
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members     TeamMember[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id           Int      @id @default(autoincrement())
+  teamId       Int
+  slotPosition Int
+  pokemonId    Int
+  pokemonName  String
+  nickname     String?
+  spriteUrl    String
+  types        String   @default("[]")
+  nature       String?
+  abilityName  String?
+  move1        String?
+  move2        String?
+  move3        String?
+  move4        String?
+  team         Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("team_members")
+}
+
 model Pokemon {
   id             Int              @id
   name           String           @unique
+  descriptionEn  String?
+  descriptionPt  String?
   height         Int
   weight         Int
   spriteUrl      String
@@ -24,6 +72,7 @@ model Pokemon {
   updatedAt      DateTime         @updatedAt
   types          PokemonType[]
   abilities      PokemonAbility[]
+  moves          PokemonMove[]
 
   @@map("pokemons")
 }
@@ -31,6 +80,7 @@ model Pokemon {
 model Type {
   id       Int           @id @default(autoincrement())
   name     String        @unique
+  namePt   String?
   pokemons PokemonType[]
 
   @@map("types")
@@ -47,9 +97,12 @@ model PokemonType {
 }
 
 model Ability {
-  id       Int              @id @default(autoincrement())
-  name     String           @unique
-  pokemons PokemonAbility[]
+  id            Int              @id @default(autoincrement())
+  name          String           @unique
+  description   String?
+  descriptionEn String?
+  descriptionPt String?
+  pokemons      PokemonAbility[]
 
   @@map("abilities")
 }
@@ -63,4 +116,53 @@ model PokemonAbility {
 
   @@id([pokemonId, abilityId])
   @@map("pokemon_abilities")
+}
+
+model Move {
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  type          String?
+  category      String?
+  power         Int?
+  pp            Int?
+  accuracy      Int?
+  description   String?
+  descriptionEn String?
+  descriptionPt String?
+  pokemons      PokemonMove[]
+
+  @@map("moves")
+}
+
+model PokemonMove {
+  pokemonId   Int
+  moveId      Int
+  learnMethod String
+  level       Int     @default(0)
+  pokemon     Pokemon @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  move        Move    @relation(fields: [moveId], references: [id], onDelete: Cascade)
+
+  @@id([pokemonId, moveId, learnMethod, level])
+  @@map("pokemon_moves")
+}
+
+model SavedPokemon {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  pokemonId   Int
+  pokemonName String
+  nickname    String?
+  spriteUrl   String
+  types       String   @default("[]")
+  nature      String?
+  abilityName String?
+  move1       String?
+  move2       String?
+  move3       String?
+  move4       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_pokemons")
 }

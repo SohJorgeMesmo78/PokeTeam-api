@@ -1,6 +1,7 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { prisma } from '../config/db';
+import { translateEnToPtBr } from '../utils/googleTranslate';
 
 dotenv.config();
 
@@ -16,6 +17,14 @@ interface PokeApiType {
 interface PokeApiAbility {
   is_hidden: boolean;
   ability: { name: string };
+}
+
+interface PokeApiMoveItem {
+  move: { name: string };
+  version_group_details: Array<{
+    level_learned_at: number;
+    move_learn_method: { name: string };
+  }>;
 }
 
 interface PokeApiPokemonDetail {
@@ -34,6 +43,7 @@ interface PokeApiPokemonDetail {
   stats: PokeApiStat[];
   types: PokeApiType[];
   abilities: PokeApiAbility[];
+  moves: PokeApiMoveItem[];
 }
 
 interface PokeApiItem {
@@ -41,9 +51,9 @@ interface PokeApiItem {
   url: string;
 }
 
-// In-memory caches to reduce DB calls during seeding
 const typeCache = new Map<string, number>();
 const abilityCache = new Map<string, number>();
+const moveCache = new Map<string, number>();
 
 async function getOrCreateType(name: string): Promise<number> {
   if (typeCache.has(name)) {
@@ -66,9 +76,30 @@ async function getOrCreateAbility(name: string): Promise<number> {
     return abilityCache.get(name)!;
   }
   let record = await prisma.ability.findUnique({ where: { name } });
-  if (!record) {
+  if (!record || !record.descriptionPt) {
+    let descriptionEn: string | null = null;
+    let descriptionPt: string | null = null;
     try {
-      record = await prisma.ability.create({ data: { name } });
+      const res = await axios.get(`https://pokeapi.co/api/v2/ability/${name}`);
+      const mData = res.data;
+      const ftEn = mData.effect_entries?.find((e: any) => e.language.name === 'en');
+      const ftTextEn = mData.flavor_text_entries?.find((e: any) => e.language.name === 'en');
+      descriptionEn = [
+        ftTextEn?.flavor_text?.replace(/[\f\n\r]/g, ' '),
+        (ftEn?.effect || ftEn?.short_effect)?.replace(/[\f\n\r]/g, ' ')
+      ].filter(Boolean).join(' ') || 'No description available.';
+
+      descriptionPt = await translateEnToPtBr(descriptionEn);
+    } catch {
+      // fallback
+    }
+
+    try {
+      record = await prisma.ability.upsert({
+        where: { name },
+        update: { description: descriptionEn, descriptionEn, descriptionPt },
+        create: { name, description: descriptionEn, descriptionEn, descriptionPt },
+      });
     } catch {
       record = await prisma.ability.findUniqueOrThrow({ where: { name } });
     }
@@ -77,8 +108,65 @@ async function getOrCreateAbility(name: string): Promise<number> {
   return record.id;
 }
 
+async function getOrCreateMove(name: string): Promise<number> {
+  if (moveCache.has(name)) {
+    return moveCache.get(name)!;
+  }
+
+  let record = await prisma.move.findUnique({ where: { name } });
+  if (!record || !record.type || !record.descriptionPt) {
+    let typeName: string | null = null;
+    let category: string | null = null;
+    let power: number | null = null;
+    let pp: number | null = null;
+    let accuracy: number | null = null;
+    let descriptionEn: string | null = null;
+    let descriptionPt: string | null = null;
+
+    try {
+      const res = await axios.get(`https://pokeapi.co/api/v2/move/${name}`);
+      const mData = res.data;
+      typeName = mData.type?.name || null;
+      category = mData.damage_class?.name || null;
+      power = mData.power || null;
+      pp = mData.pp || null;
+      accuracy = mData.accuracy || null;
+
+      const flavorEntry = mData.flavor_text_entries?.find((e: any) => e.language.name === 'en');
+      const flavorText = flavorEntry ? flavorEntry.flavor_text.replace(/[\f\n\r]/g, ' ') : '';
+
+      const effectEntry = mData.effect_entries?.find((e: any) => e.language.name === 'en');
+      let effectText = effectEntry ? (effectEntry.effect || effectEntry.short_effect || '') : '';
+      if (mData.effect_chance && effectText.includes('$effect_chance')) {
+        effectText = effectText.replace(/\$effect_chance/g, mData.effect_chance.toString());
+      }
+      effectText = effectText.replace(/[\f\n\r]/g, ' ');
+
+      descriptionEn = [flavorText, effectText].filter(Boolean).join(' ');
+      if (!descriptionEn.trim()) descriptionEn = 'No detailed description available.';
+
+      descriptionPt = await translateEnToPtBr(descriptionEn);
+    } catch {
+      // fallback
+    }
+
+    try {
+      record = await prisma.move.upsert({
+        where: { name },
+        update: { type: typeName, category, power, pp, accuracy, description: descriptionEn, descriptionEn, descriptionPt },
+        create: { name, type: typeName, category, power, pp, accuracy, description: descriptionEn, descriptionEn, descriptionPt },
+      });
+    } catch {
+      record = await prisma.move.findUniqueOrThrow({ where: { name } });
+    }
+  }
+
+  moveCache.set(name, record.id);
+  return record.id;
+}
+
 export async function seedPokemons(limit = 1025) {
-  console.log(`🚀 Iniciando sincronização da PokeAPI (${limit} Pokémon)...`);
+  console.log(`🚀 Iniciando sincronização da PokeAPI (${limit} Pokémon + Golpes + Google Tradutor PT-BR)...`);
   try {
     const listResponse = await axios.get<{ results: PokeApiItem[] }>(
       `https://pokeapi.co/api/v2/pokemon?limit=${limit}`
@@ -108,11 +196,25 @@ export async function seedPokemons(limit = 1025) {
               '';
             const sprite = data.sprites.front_default || artwork || '';
 
+            // Pokémon Species Bio
+            let descriptionEn: string | null = null;
+            let descriptionPt: string | null = null;
+            try {
+              const speciesRes = await axios.get(`https://pokeapi.co/api/v2/pokemon-species/${data.id}`);
+              const ftEn = speciesRes.data.flavor_text_entries?.find((e: any) => e.language.name === 'en');
+              if (ftEn) {
+                descriptionEn = ftEn.flavor_text.replace(/[\f\n\r]/g, ' ');
+                descriptionPt = await translateEnToPtBr(descriptionEn);
+              }
+            } catch {}
+
             // Upsert Pokémon
             await prisma.pokemon.upsert({
               where: { id: data.id },
               update: {
                 name: data.name,
+                descriptionEn,
+                descriptionPt,
                 height: data.height,
                 weight: data.weight,
                 spriteUrl: sprite,
@@ -127,6 +229,8 @@ export async function seedPokemons(limit = 1025) {
               create: {
                 id: data.id,
                 name: data.name,
+                descriptionEn,
+                descriptionPt,
                 height: data.height,
                 weight: data.weight,
                 spriteUrl: sprite,
@@ -164,6 +268,35 @@ export async function seedPokemons(limit = 1025) {
                 },
               });
             }
+
+            // Handle Moves
+            await prisma.pokemonMove.deleteMany({ where: { pokemonId: data.id } });
+            for (const mItem of data.moves || []) {
+              const moveId = await getOrCreateMove(mItem.move.name);
+              const seenKeys = new Set<string>();
+
+              for (const detail of mItem.version_group_details || []) {
+                const method = detail.move_learn_method.name;
+                const level = detail.level_learned_at || 0;
+                const key = `${method}-${level}`;
+
+                if (!seenKeys.has(key)) {
+                  seenKeys.add(key);
+                  try {
+                    await prisma.pokemonMove.create({
+                      data: {
+                        pokemonId: data.id,
+                        moveId,
+                        learnMethod: method,
+                        level,
+                      },
+                    });
+                  } catch {
+                    // Ignore duplicate key if any
+                  }
+                }
+              }
+            }
           } catch (err) {
             console.error(`❌ Erro ao processar ${item.name}:`, err);
           }
@@ -171,8 +304,8 @@ export async function seedPokemons(limit = 1025) {
       );
 
       const processed = Math.min(i + BATCH_SIZE, pokemonList.length);
-      if (processed % 50 === 0 || processed === pokemonList.length) {
-        console.log(`✅ Progresso: ${processed}/${pokemonList.length} Pokémon salvos.`);
+      if (processed % 25 === 0 || processed === pokemonList.length) {
+        console.log(`✅ Progresso: ${processed}/${pokemonList.length} Pokémon e golpes traduzidos salvos.`);
       }
     }
 
