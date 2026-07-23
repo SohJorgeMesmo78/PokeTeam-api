@@ -202,9 +202,11 @@ export async function seedPokemons(limit = 1025) {
             try {
               const speciesRes = await axios.get(`https://pokeapi.co/api/v2/pokemon-species/${data.id}`);
               const ftEn = speciesRes.data.flavor_text_entries?.find((e: any) => e.language.name === 'en');
-              if (ftEn) {
+              if (ftEn && ftEn.flavor_text) {
                 descriptionEn = ftEn.flavor_text.replace(/[\f\n\r]/g, ' ');
-                descriptionPt = await translateEnToPtBr(descriptionEn || '');
+                if (descriptionEn) {
+                  descriptionPt = await translateEnToPtBr(descriptionEn);
+                }
               }
             } catch {}
 

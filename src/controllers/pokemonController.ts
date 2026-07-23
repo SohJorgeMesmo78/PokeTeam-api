@@ -439,13 +439,13 @@ export const getPokemons = async (req: Request, res: Response) => {
 
 export const getPokemonById = async (req: Request, res: Response) => {
   try {
-    const idOrName = String(req.params['idOrName'] || '');
+    const { idOrName } = req.params;
     const isId = !isNaN(Number(idOrName));
 
     const pokemon = await prisma.pokemon.findFirst({
       where: isId
         ? { id: Number(idOrName) }
-        : { name: { equals: idOrName.toLowerCase(), mode: 'insensitive' } },
+        : { name: { equals: String(idOrName).toLowerCase(), mode: 'insensitive' } },
       include: {
         types: {
           include: {

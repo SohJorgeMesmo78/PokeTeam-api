@@ -52,7 +52,7 @@ export const getUserTeams = async (req: AuthRequest, res: Response) => {
 export const getTeamById = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const teamId = parseInt(String(req.params['id']), 10);
+    const teamId = parseInt(String(req.params.id), 10);
 
     if (!userId || isNaN(teamId)) {
       return res.status(400).json({ error: 'ID de time inválido ou usuário não autenticado.' });
@@ -161,7 +161,7 @@ export const createTeam = async (req: AuthRequest, res: Response) => {
 export const updateTeam = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const teamId = parseInt(String(req.params['id']), 10);
+    const teamId = parseInt(String(req.params.id), 10);
 
     if (!userId || isNaN(teamId)) {
       return res.status(400).json({ error: 'Parâmetros inválidos.' });
@@ -223,7 +223,7 @@ export const updateTeam = async (req: AuthRequest, res: Response) => {
 export const deleteTeam = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const teamId = parseInt(String(req.params['id']), 10);
+    const teamId = parseInt(String(req.params.id), 10);
 
     if (!userId || isNaN(teamId)) {
       return res.status(400).json({ error: 'Parâmetros inválidos.' });
