@@ -204,7 +204,7 @@ export async function seedPokemons(limit = 1025) {
               const ftEn = speciesRes.data.flavor_text_entries?.find((e: any) => e.language.name === 'en');
               if (ftEn) {
                 descriptionEn = ftEn.flavor_text.replace(/[\f\n\r]/g, ' ');
-                descriptionPt = await translateEnToPtBr(descriptionEn);
+                descriptionPt = await translateEnToPtBr(descriptionEn || '');
               }
             } catch {}
 

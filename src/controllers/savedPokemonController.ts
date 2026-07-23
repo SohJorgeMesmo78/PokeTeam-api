@@ -41,7 +41,7 @@ export const getUserSavedPokemons = async (req: AuthRequest, res: Response) => {
 export const getSavedPokemonById = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params['id']), 10);
 
     if (!userId || isNaN(id)) {
       return res.status(400).json({ error: 'ID inválido ou usuário não autenticado.' });
@@ -144,7 +144,7 @@ export const createSavedPokemon = async (req: AuthRequest, res: Response) => {
 export const updateSavedPokemon = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params['id']), 10);
 
     if (!userId || isNaN(id)) {
       return res.status(400).json({ error: 'ID inválido ou usuário não autenticado.' });
@@ -210,7 +210,7 @@ export const updateSavedPokemon = async (req: AuthRequest, res: Response) => {
 export const deleteSavedPokemon = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params['id']), 10);
 
     if (!userId || isNaN(id)) {
       return res.status(400).json({ error: 'ID inválido ou usuário não autenticado.' });
