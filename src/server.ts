@@ -12,7 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-  origin: ['http://localhost:4200', 'https://poke-team-portal.vercel.app'],
+  origin: ['http://localhost:4200', 'https://poke-team-portal.vercel.app', 'https://poketeam.seteoito.dev'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
