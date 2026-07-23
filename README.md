@@ -1,30 +1,30 @@
 # ⚡ PokéTeam API
 
-API REST desenvolvida em **Node.js**, **Express**, **TypeScript**, **Prisma ORM** e **PostgreSQL**. A API consome os dados da [PokeAPI](https://pokeapi.co/) para sincronizar e armazenar **1025 Pokémon** em um banco de dados local próprio, disponibilizando endpoints otimizados para o **PokéTeam Portal**.
+API RESTful completa desenvolvida em **Node.js**, **Express**, **TypeScript**, **Prisma ORM** e **PostgreSQL**. A API consome os dados da [PokeAPI](https://pokeapi.co/) para sincronizar **1025 Pokémon** em um banco de dados local próprio, além de gerenciar **Autenticação JWT**, **Times de Usuários** e a biblioteca de **Pokémon Salvos**.
 
 ---
 
-## 🚀 Tecnologias
+## 🚀 Tecnologias Utilizadas
 
 - **Node.js** (v20+)
 - **Express.js**
 - **TypeScript**
 - **Prisma ORM** (v5)
-- **PostgreSQL**
-- **Axios**
-- **TSX** (Execução TypeScript em modo dev)
+- **PostgreSQL** (Banco de dados relacional)
+- **JSON Web Token (JWT)** & **Bcrypt.js** (Autenticação e segurança)
+- **Axios** (Integração com PokeAPI)
+- **TSX** (Executor TypeScript em desenvolvimento)
 
 ---
 
 ## 📋 Pré-requisitos
 
-Antes de iniciar, você precisará ter instalado em sua máquina:
-- [Node.js](https://nodejs.org/)
-- [PostgreSQL](https://www.postgresql.org/) rodando na porta `5432` com usuário/senha (padrão: `postgres` / `postgres`).
+1. **Node.js** (v18 ou superior)
+2. **PostgreSQL** rodando na porta `5432` com usuário/senha (padrão: `postgres` / `postgres`).
 
 ---
 
-## 🛠️ Passo a Passo para Gerar e Popular o Banco de Dados
+## 🛠️ Instalação e Configuração
 
 ### 1. Clonar o repositório
 ```bash
@@ -32,87 +32,143 @@ git clone https://github.com/SohJorgeMesmo78/PokeTeam-api.git
 cd PokeTeam-api
 ```
 
-### 2. Instalar as dependências
+### 2. Instalar dependências
 ```bash
 npm install
 ```
 
-### 3. Criar o arquivo `.env`
-Crie um arquivo chamado `.env` na raiz da pasta `PokeTeam-api` com o seguinte conteúdo:
+### 3. Criar arquivo de variáveis de ambiente `.env`
+Crie um arquivo `.env` na raiz do diretório `PokeTeam-api`:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/PokeTeamDb?schema=public"
 PORT=3000
+JWT_SECRET="poketeam-secret-key-2026"
 ```
-> 💡 *Caso a senha ou a porta do seu PostgreSQL local seja diferente, ajuste a URL acima.*
 
-### 4. Criar o banco e carregar os 1025 Pokémon (Comando Único)
-Rode o comando abaixo:
-
+### 4. Criar o Banco e Popular 1025 Pokémon (Comando Único)
 ```bash
 npm run db:setup
 ```
 
 #### ⚙️ O que o `npm run db:setup` faz?
-1. **`prisma db push`**: Conecta ao PostgreSQL, cria o banco de dados `PokeTeamDb` (se não existir) e gera todas as tabelas (`pokemons`, `types`, `abilities`, `pokemon_types`, `pokemon_abilities`).
-2. **`prisma db seed`**: Dispara o script de carga ([seed.ts](src/scripts/seed.ts)) que busca todos os 1025 Pokémon na PokeAPI e insere no PostgreSQL.
+1. **`prisma db push`**: Conecta ao PostgreSQL local, cria o banco `PokeTeamDb` e gera as tabelas (`users`, `teams`, `team_members`, `saved_pokemons`, `pokemons`, `types`, `abilities`).
+2. **`prisma db seed`**: Busca todos os 1025 Pokémon na PokeAPI e os salva com estatísticas, habilidades e tipos no PostgreSQL.
 
 ---
 
-## 📜 Todos os Comandos Disponíveis
-
-| Comando | Descrição |
-| --- | --- |
-| `npm run db:setup` | **Cria o banco, gera as tabelas e roda a seed** (1025 Pokémon) |
-| `npm run db:push` | Apenas cria/sincroniza as tabelas do schema Prisma |
-| `npm run db:seed` | Apenas executa a carga dos Pokémon da PokeAPI para o banco |
-| `npm run dev` | Inicia o servidor da API em modo de desenvolvimento (`http://localhost:3000`) |
-| `npm run prisma:generate` | Gera o cliente do Prisma |
-
----
-
-## 🟢 Executando a API
-
-Após rodar a seed, inicie o servidor:
+## 🟢 Executando o Servidor
 
 ```bash
 npm run dev
 ```
 
-A API estará disponível em: `http://localhost:3000`
+A API estará rodando em: `http://localhost:3000`
 
 ---
 
 ## 📌 Endpoints da API
 
-### 1. Listar Pokémon
-- **URL**: `GET /api/pokemons`
-- **Parâmetros Query**:
-  - `page` (número, padrão: `1`)
-  - `limit` (número, padrão: `24`)
-  - `search` (string, busca por nome do pokémon)
-  - `type` (string, filtro por tipo elemental: `fire`, `water`, `grass`, etc.)
-- **Exemplo**: `http://localhost:3000/api/pokemons?type=fire&limit=12`
-
-### 2. Detalhes de um Pokémon
-- **URL**: `GET /api/pokemons/:idOrName`
-- **Exemplo**: `http://localhost:3000/api/pokemons/pikachu` ou `http://localhost:3000/api/pokemons/25`
-
-### 3. Listar Tipos Elementais
-- **URL**: `GET /api/types`
-- **Retorno**: Array de nomes de tipos `["bug", "dark", "dragon", "electric", "fire", ...]`
-
-### 4. Forçar Sincronização
-- **URL**: `POST /api/pokemons/sync`
-- **Body JSON** (Opcional): `{ "limit": 151 }`
-- **Descrição**: Dispara a carga da PokeAPI em background.
+### 🔐 1. Autenticação (`/api/auth`)
+| Método | Rota | Descrição | Requer Auth |
+| --- | --- | --- | --- |
+| `POST` | `/api/auth/register` | Cria uma nova conta de usuário (`username`, `email`, `password`) | ❌ Não |
+| `POST` | `/api/auth/login` | Realiza login e retorna o Token JWT (`login`, `password`) | ❌ Não |
+| `GET` | `/api/auth/me` | Retorna os dados do usuário logado via Token JWT | ✅ Sim |
 
 ---
 
-## 🗄️ Modelo de Dados (Prisma Schema)
+### 📖 2. Pokédex & Filtros (`/api/pokemons`)
+| Método | Rota | Descrição | Requer Auth |
+| --- | --- | --- | --- |
+| `GET` | `/api/pokemons` | Lista Pokémon paginados com suporte a `search`, `type`, `gen`, `game`, `fullyEvolved` | ❌ Não |
+| `GET` | `/api/pokemons/:idOrName` | Retorna detalhes completos do Pokémon (stats, tipos, habilidades, evoluções) | ❌ Não |
+| `GET` | `/api/moves/:moveName` | Retorna detalhes técnicos do golpe (tipo, categoria, poder, PP, precisão, descrição PT) | ❌ Não |
 
-O esquema do banco de dados inclui as seguintes tabelas:
-- **`pokemons`**: id, nome, altura, peso, URLs das imagens/artwork, e stats base (HP, Ataque, Defesa, Sp. Atk, Sp. Def, Velocidade).
-- **`types`**: tipos elementais únicos.
-- **`abilities`**: habilidades únicas.
-- **`pokemon_types` & `pokemon_abilities`**: tabelas de relacionamento (N:N).
+---
+
+### 🎮 3. Versões de Jogos & Exclusivos (`/api/games` & `/api/exclusives`)
+| Método | Rota | Descrição | Requer Auth |
+| --- | --- | --- | --- |
+| `GET` | `/api/games` | Retorna as versões oficiais dos jogos Pokémon e suas Pokédex Regionais | ❌ Não |
+| `GET` | `/api/exclusives` | Lista os pares de jogos com a relação de Pokémon exclusivos por versão | ❌ Não |
+| `GET` | `/api/exclusives/tag` | Consulta se um Pokémon é exclusivo de uma versão selecionada | ❌ Não |
+
+---
+
+### 🛡️ 4. Gestão de Times (`/api/teams`)
+*Todas as rotas de times requerem cabeçalho `Authorization: Bearer <token>`.*
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` | `/api/teams` | Lista todos os times criados pelo usuário logado |
+| `POST` | `/api/teams` | Cria um novo time de Pokémon com até 6 integrantes |
+| `GET` | `/api/teams/:id` | Retorna os detalhes de um time específico do usuário |
+| `PUT` | `/api/teams/:id` | Atualiza o nome, versão do jogo e os 6 integrantes do time |
+| `DELETE` | `/api/teams/:id` | Exclui um time do usuário |
+
+---
+
+### 💖 5. Biblioteca "Meus Pokémon Salvos" (`/api/saved-pokemons`)
+*Todas as rotas de Pokémon salvos requerem cabeçalho `Authorization: Bearer <token>`.*
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` | `/api/saved-pokemons` | Lista a biblioteca de Pokémon salvos do usuário |
+| `POST` | `/api/saved-pokemons` | Salva uma instância de Pokémon com apelido, natureza, habilidade e golpes |
+| `GET` | `/api/saved-pokemons/:id` | Retorna um Pokémon salvo por ID |
+| `PUT` | `/api/saved-pokemons/:id` | Atualiza os dados de um Pokémon salvo |
+| `DELETE` | `/api/saved-pokemons/:id` | Exclui um Pokémon salvo |
+
+---
+
+## 🗄️ Esquema do Banco de Dados (Prisma ORM)
+
+```prisma
+model User {
+  id            Int            @id @default(autoincrement())
+  username      String         @unique
+  email         String         @unique
+  password      String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  teams         Team[]
+  savedPokemons SavedPokemon[]
+}
+
+model Team {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  name        String
+  gameVersion String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members     TeamMember[]
+}
+
+model SavedPokemon {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  pokemonId   Int
+  pokemonName String
+  nickname    String?
+  spriteUrl   String
+  types       Json
+  nature      String?
+  abilityName String?
+  move1       String?
+  move2       String?
+  move3       String?
+  move4       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+---
+
+## 👨‍💻 Autor
+
+Desenvolvido por **[Jorge Pereira](https://jf-pereira.vercel.app/)**.
